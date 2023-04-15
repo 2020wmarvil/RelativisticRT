@@ -25,13 +25,8 @@ foreach (_headerFile ${APPLICATION_HEADERS})
 endforeach()
 list (REMOVE_DUPLICATES RRT_INCLUDE_DIRS)
 
-# collect shaders
-set(SHADER_DIR_GLSL "Data/shaders/glsl/computeraytracing")
-file(GLOB SHADERS_GLSL "${SHADER_DIR_GLSL}/*.vert" "${SHADER_DIR_GLSL}/*.frag" "${SHADER_DIR_GLSL}/*.comp" "${SHADER_DIR_GLSL}/*.geom" "${SHADER_DIR_GLSL}/*.tesc" "${SHADER_DIR_GLSL}/*.tese" "${SHADER_DIR_GLSL}/*.mesh" "${SHADER_DIR_GLSL}/*.task" "${SHADER_DIR_GLSL}/*.rgen" "${SHADER_DIR_GLSL}/*.rchit" "${SHADER_DIR_GLSL}/*.rmiss" "${SHADER_DIR_GLSL}/*.rcall")
-source_group("Shaders\\GLSL" FILES ${SHADERS_GLSL})
-
 # create executable
-add_executable(${PROJECT_NAME} WIN32 ${RRT_SOURCES} ${RRT_HEADERS} ${SHADERS_GLSL})
+add_executable(${PROJECT_NAME} WIN32 ${RRT_SOURCES} ${RRT_HEADERS})
 target_link_libraries(${PROJECT_NAME} SaschaWillemsBase ${Vulkan_LIBRARY} ${WINLIBS})
 
 # set compiler flags
@@ -53,3 +48,37 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "SaschaWillems/external/ktx/other_include"
     "SaschaWillems/base"
 )
+
+# create a shader target
+find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
+
+set(SHADER_PATH "${PROJECT_SOURCE_DIR}/Data/shaders/glsl/computeraytracing")
+
+file (GLOB_RECURSE SHADERS CONFIGURE_DEPENDS 
+    "${SHADER_PATH}/*.vert" 
+    "${SHADER_PATH}/*.frag"
+    "${SHADER_PATH}/*.comp"
+    )
+
+# custom command to compile shaders
+foreach(GLSL ${SHADERS})
+  message(STATUS "BUILDING SHADER")
+  get_filename_component(FILE_NAME ${GLSL} NAME)
+  set(SPIRV "${SHADER_PATH}/${FILE_NAME}.spv")
+  message(STATUS ${GLSL})
+  add_custom_command(
+    OUTPUT ${SPIRV}
+    COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+    DEPENDS ${GLSL})
+
+  list(APPEND SPIRV_BINARY_FILES ${SPIRV})
+endforeach(GLSL)
+
+# create a shader target
+add_custom_target(
+    Shaders
+    SOURCES ${SHADERS}
+    DEPENDS ${SPIRV_BINARY_FILES}
+    )
+
+add_dependencies(${PROJECT_NAME} Shaders)

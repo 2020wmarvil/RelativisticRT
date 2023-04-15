@@ -81,7 +81,7 @@ public:
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
-		title = "Compute shader ray tracing";
+		title = "General Relativistic Raytracing";
 		compute.ubo.aspectRatio = (float)width / (float)height;
 		timerSpeed *= 0.25f;
 
