@@ -13,6 +13,11 @@ layout (binding = 0, rgba8) uniform writeonly image2D resultImage;
 #define REFLECTIONSTRENGTH 0.4
 #define REFLECTIONFALLOFF 0.5
 
+// Blackhole parameters
+#define C 1.0
+#define G 45.0
+#define ONE_OVER_C_SQUARED (1.0 / (C * C))
+
 struct Camera 
 {
 	vec3 pos;   
@@ -48,6 +53,11 @@ struct Plane
 };
 
 int blackholeID = -2;
+struct Blackhole
+{
+	vec3 pos;
+	float mass;
+};
 
 layout (std140, binding = 2) buffer Spheres
 {
@@ -59,7 +69,12 @@ layout (std140, binding = 3) buffer Planes
 	Plane planes[ ];
 };
 
-layout (binding = 4) uniform samplerCube samplerCubeMap;
+layout (std140, binding = 4) buffer Blackholes
+{
+	Blackhole blackholes[ ];
+};
+
+layout (binding = 5) uniform samplerCube samplerCubeMap;
 
 void reflectRay(inout vec3 rayD, in vec3 mormal)
 {
@@ -139,19 +154,24 @@ VelAcc stepVelAcc(vec3 pos, vec3 vel) {
 	return va;
 }
 
-vec3 bendPos(vec3 pos, inout float r2) {
+vec3 bendPos(vec3 pos, inout int index) {
+	float m2 = 0.01;
 
-	float G = 0.01;
-	float m1 = 1.0;
-	float m2 = 1.0;
+	for (int i = 0; i < blackholes.length(); i++)
+	{
+		vec3 r = blackholes[i].pos - pos;
+		float r2 = dot(r, r);
 
-	vec3 blackholeCenter = vec3(1.75f, -0.5f, -0.0f);
-	vec3 r = blackholeCenter - pos;
-	r2 = dot(r, r);
+		float swRadius = 2 * G * blackholes[i].mass * ONE_OVER_C_SQUARED;
+		if (r2 < swRadius * swRadius)
+		{
+			index = blackholeID;
+			break;
+		}
 
-	float gravForce = G * m1 * m2  / r2;
-
-	pos += gravForce * normalize(r);
+		float gravForce = G * blackholes[i].mass * m2  / r2;
+		pos += gravForce * normalize(r);
+	}
 
 	return pos;
 }
@@ -161,15 +181,10 @@ int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 	int id = -1;
 
 	int numIterations = 500;
-	float c = 1.0f;
 	float stepSize = 0.1f;
-
-	float schwarzildRadiusSquared = 1.25f * 1.25f;
 
 	vec3 pos = rayO;
 	vec3 dir = rayD;
-	//vec3 vel = rayD * c;
-	//vec3 acc = vec3(0, 0, 0);
 
 	float resT = MAXLEN;
 
@@ -202,19 +217,14 @@ int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 
 		vec3 nextPos = pos + dir * stepSize;
 
-		float r2;
-		vec3 bentPos = bendPos(nextPos, r2);
+		vec3 bentPos = bendPos(nextPos, id);
+		if (id == blackholeID) return blackholeID;
 		vec3 nextDir = normalize(bentPos - pos);
 
 		pos = bentPos;
 		dir = nextDir;
 
 		if (id == -1) hitDir = nextDir;
-
-		if (r2 < schwarzildRadiusSquared) {
-			return blackholeID;
-		}
-
 
 		//VelAcc k1 = stepVelAcc(pos, vel);
 		//VelAcc k2 = stepVelAcc(pos + dt * 0.5 * k1.vel, vel + dt * 0.5 * k1.acc);

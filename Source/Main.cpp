@@ -39,6 +39,7 @@ public:
 		struct {
 			vks::Buffer spheres;						// (Shader) storage buffer object with scene spheres
 			vks::Buffer planes;						// (Shader) storage buffer object with scene planes
+			vks::Buffer blackholes;
 		} storageBuffers;
 		vks::Buffer uniformBuffer;					// Uniform buffer object containing scene data
 		VkQueue queue;								// Separate queue for compute commands (queue family may differ from the one used for graphics)
@@ -82,6 +83,12 @@ public:
 		glm::ivec3 _pad;
 	};
 
+	// SSBO blackhole declaration
+	struct Blackhole {									// Shader uses std140 layout (so we only use vec4 instead of vec3)
+		glm::vec3 pos;
+		float mass;
+	};
+
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
 		title = "General Relativistic Raytracing";
@@ -112,6 +119,7 @@ public:
 		compute.uniformBuffer.destroy();
 		compute.storageBuffers.spheres.destroy();
 		compute.storageBuffers.planes.destroy();
+		compute.storageBuffers.blackholes.destroy();
 
 		textureComputeTarget.destroy();
 		cubeMap.destroy();
@@ -568,14 +576,22 @@ public:
 		return plane;
 	}
 
+	Blackhole newBlackhole(glm::vec3 pos, float mass)
+	{
+		Blackhole blackhole;
+		blackhole.pos = pos;
+		blackhole.mass = mass;
+		return blackhole;
+	}
+
 	// Setup and fill the compute shader storage buffers containing primitives for the raytraced scene
 	void prepareStorageBuffers()
 	{
 		// Spheres
 		std::vector<Sphere> spheres;
 		//spheres.push_back(newSphere(glm::vec3(1.75f, -0.5f, 0.0f), 1.0f, glm::vec3(0.0f, 1.0f, 0.0f), 32.0f));
-		spheres.push_back(newSphere(glm::vec3(0.0f, 1.0f, -0.5f), 1.0f, glm::vec3(0.65f, 0.77f, 0.97f), 32.0f));
-		spheres.push_back(newSphere(glm::vec3(-1.75f, -0.75f, -0.5f), 1.25f, glm::vec3(0.9f, 0.76f, 0.46f), 32.0f));
+		spheres.push_back(newSphere(glm::vec3(0.0f, -100.0f, -3.5f), 1.0f, glm::vec3(0.65f, 0.77f, 0.97f), 32.0f));
+		//spheres.push_back(newSphere(glm::vec3(-1.75f, -0.75f, -0.5f), 1.25f, glm::vec3(0.9f, 0.76f, 0.46f), 32.0f));
 		VkDeviceSize storageBufferSize = spheres.size() * sizeof(Sphere);
 
 		// Stage
@@ -604,15 +620,45 @@ public:
 
 		stagingBuffer.destroy();
 
+		// Blackholes
+		std::vector<Blackhole> blackholes;
+		blackholes.push_back(newBlackhole(glm::vec3(2.75f, -1.5f, -0.0f), 0.002f));
+		blackholes.push_back(newBlackhole(glm::vec3(-2.9f, -1.0f, -0.0f), 0.008f));
+		blackholes.push_back(newBlackhole(glm::vec3(0.0f, 1.5f, -0.5f), 0.005f));
+		storageBufferSize = blackholes.size() * sizeof(Blackhole);
+
+		// Stage
+		vulkanDevice->createBuffer(
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			&stagingBuffer,
+			storageBufferSize,
+			blackholes.data());
+
+		vulkanDevice->createBuffer(
+			// The SSBO will be used as a storage buffer for the compute pipeline and as a vertex buffer in the graphics pipeline
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			&compute.storageBuffers.blackholes,
+			storageBufferSize);
+
+		// Copy to staging buffer
+		copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+		copyRegion.size = storageBufferSize;
+		vkCmdCopyBuffer(copyCmd, stagingBuffer.buffer, compute.storageBuffers.blackholes.buffer, 1, &copyRegion);
+		vulkanDevice->flushCommandBuffer(copyCmd, queue, true);
+
+		stagingBuffer.destroy();
+
 		// Planes
 		std::vector<Plane> planes;
 		const float roomDim = 4.0f;
 		planes.push_back(newPlane(glm::vec3(0.0f, 1.0f, 0.0f), roomDim, glm::vec3(1.0f), 32.0f));
-		//planes.push_back(newPlane(glm::vec3(0.0f, -1.0f, 0.0f), roomDim, glm::vec3(1.0f), 32.0f));
-		//planes.push_back(newPlane(glm::vec3(0.0f, 0.0f, 1.0f), roomDim, glm::vec3(1.0f), 32.0f));
+		planes.push_back(newPlane(glm::vec3(0.0f, -1.0f, 0.0f), roomDim, glm::vec3(1.0f), 32.0f));
+		planes.push_back(newPlane(glm::vec3(0.0f, 0.0f, 1.0f), roomDim, glm::vec3(1.0f), 32.0f));
 		//planes.push_back(newPlane(glm::vec3(0.0f, 0.0f, -1.0f), roomDim, glm::vec3(0.0f), 32.0f));
-		//planes.push_back(newPlane(glm::vec3(-1.0f, 0.0f, 0.0f), roomDim, glm::vec3(1.0f, 0.0f, 0.0f), 32.0f));
-		//planes.push_back(newPlane(glm::vec3(1.0f, 0.0f, 0.0f), roomDim, glm::vec3(0.0f, 1.0f, 0.0f), 32.0f));
+		planes.push_back(newPlane(glm::vec3(-1.0f, 0.0f, 0.0f), roomDim, glm::vec3(1.0f, 0.0f, 0.0f), 32.0f));
+		planes.push_back(newPlane(glm::vec3(1.0f, 0.0f, 0.0f), roomDim, glm::vec3(0.0f, 1.0f, 0.0f), 32.0f));
 		storageBufferSize = planes.size() * sizeof(Plane);
 
 		// Stage
@@ -634,6 +680,7 @@ public:
 		copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 		copyRegion.size = storageBufferSize;
 		vkCmdCopyBuffer(copyCmd, stagingBuffer.buffer, compute.storageBuffers.planes.buffer, 1, &copyRegion);
+
 		// Add an initial release barrier to the graphics queue,
 		// so that when the compute command buffer executes for the first time
 		// it doesn't complain about a lack of a corresponding "release" to its "acquire"
@@ -668,9 +715,9 @@ public:
 		std::vector<VkDescriptorPoolSize> poolSizes =
 		{
 			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),			// Compute UBO
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 40),	// Graphics image samplers
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10),	// Graphics image samplers
 			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),				// Storage image for ray traced image output
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2),			// Storage buffer for the scene primitives
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3),			// Storage buffer for the scene primitives
 		};
 
 		VkDescriptorPoolCreateInfo descriptorPoolInfo =
@@ -849,11 +896,16 @@ public:
 				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 				VK_SHADER_STAGE_COMPUTE_BIT,
 				3),
-			// Binding 4: Skybox sampler
+			// Binding 4: Shader storage buffer for the blackholes
+			vks::initializers::descriptorSetLayoutBinding(
+				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+				VK_SHADER_STAGE_COMPUTE_BIT,
+				4),
+			// Binding 5: Skybox sampler
 			vks::initializers::descriptorSetLayoutBinding(
 				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 				VK_SHADER_STAGE_COMPUTE_BIT,
-				4)
+				5)
 		};
 
 		VkDescriptorSetLayoutCreateInfo descriptorLayout =
@@ -904,11 +956,17 @@ public:
 				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 				3,
 				&compute.storageBuffers.planes.descriptor),
-			// Binding 4: Skybox cubemap sampler
+			// Binding 4: Shader storage buffer for the blackholes
+			vks::initializers::writeDescriptorSet(
+				compute.descriptorSet,
+				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+				4,
+				&compute.storageBuffers.blackholes.descriptor),
+			// Binding 5: Skybox cubemap sampler
 			vks::initializers::writeDescriptorSet(
 				compute.descriptorSet,
 				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				4,
+				5,
 				&cubeMap.descriptor)
 		};
 
