@@ -20,6 +20,7 @@ private:
 
 	void updateViewMatrix()
 	{
+		return;
 		glm::mat4 rotM = glm::mat4(1.0f);
 		glm::mat4 transM;
 
@@ -53,6 +54,8 @@ public:
 	glm::vec3 rotation = glm::vec3();
 	glm::vec3 position = glm::vec3();
 	glm::vec4 viewPos = glm::vec4();
+	glm::vec3 camFront = glm::vec3(0, 0, 1);
+	glm::vec3 worldUp = glm::vec3(0, 1, 0);
 
 	float rotationSpeed = 1.0f;
 	float movementSpeed = 1.0f;
@@ -72,11 +75,13 @@ public:
 		bool right = false;
 		bool up = false;
 		bool down = false;
+		bool e = false;
+		bool q = false;
 	} keys;
 
 	bool moving()
 	{
-		return keys.left || keys.right || keys.up || keys.down;
+		return keys.left || keys.right || keys.up || keys.down || keys.e || keys.q;
 	}
 
 	float getNearClip() { 
@@ -153,11 +158,7 @@ public:
 		{
 			if (moving())
 			{
-				glm::vec3 camFront;
-				camFront.x = -cos(glm::radians(rotation.x)) * sin(glm::radians(rotation.y));
-				camFront.y = sin(glm::radians(rotation.x));
-				camFront.z = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
-				camFront = glm::normalize(camFront);
+				glm::vec3 camRight = glm::normalize(glm::cross(camFront, worldUp));
 
 				float moveSpeed = deltaTime * movementSpeed;
 
@@ -166,9 +167,13 @@ public:
 				if (keys.down)
 					position -= camFront * moveSpeed;
 				if (keys.left)
-					position -= glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * moveSpeed;
+					position -= camRight * moveSpeed;
 				if (keys.right)
-					position += glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * moveSpeed;
+					position += camRight * moveSpeed;
+				if (keys.e)
+					position += glm::normalize(glm::cross(camRight, camFront)) * moveSpeed;
+				if (keys.q)
+					position -= glm::normalize(glm::cross(camRight, camFront)) * moveSpeed;
 			}
 		}
 		updateViewMatrix();

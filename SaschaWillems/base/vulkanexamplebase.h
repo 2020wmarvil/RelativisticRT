@@ -46,6 +46,7 @@
 #include <algorithm>
 #include <sys/stat.h>
 
+//#define GLM_FORCE_LEFT_HANDED
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
@@ -81,7 +82,6 @@ private:
 	uint32_t destHeight;
 	bool resizing = false;
 	void windowResize();
-	void handleMouseMove(int32_t x, int32_t y);
 	void nextFrame();
 	void updateOverlay();
 	void createPipelineCache();
@@ -95,6 +95,7 @@ private:
 protected:
 	// Returns the path to the root of the glsl or hlsl shader directory.
 	std::string getShadersPath() const;
+	void handleMouseMove(int32_t x, int32_t y);
 
 	// Frame counter to display fps
 	uint32_t frameCounter = 0;

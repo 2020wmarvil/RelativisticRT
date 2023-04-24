@@ -8,6 +8,8 @@
 
 #include "vulkanexamplebase.h"
 
+#include <glm/gtx/string_cast.hpp>
+
 #if (defined(VK_USE_PLATFORM_MACOS_MVK) && defined(VK_EXAMPLE_XCODE_GENERATED))
 #include <Cocoa/Cocoa.h>
 #include <QuartzCore/CAMetalLayer.h>
@@ -1261,6 +1263,12 @@ void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			case KEY_D:
 				camera.keys.right = true;
 				break;
+			case KEY_E:
+				camera.keys.e = true;
+				break;
+			case KEY_Q:
+				camera.keys.q = true;
+				break;
 			}
 		}
 
@@ -1282,6 +1290,12 @@ void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 				break;
 			case KEY_D:
 				camera.keys.right = false;
+				break;
+			case KEY_E:
+				camera.keys.e = false;
+				break;
+			case KEY_Q:
+				camera.keys.q = false;
 				break;
 			}
 		}
@@ -1310,13 +1324,13 @@ void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 	case WM_MOUSEWHEEL:
 	{
 		short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-		camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f));
-		viewUpdated = true;
+		//camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f));
+		//viewUpdated = true;
 		break;
 	}
 	case WM_MOUSEMOVE:
 	{
-		handleMouseMove(LOWORD(lParam), HIWORD(lParam));
+		//handleMouseMove(LOWORD(lParam), HIWORD(lParam));
 		break;
 	}
 	case WM_SIZE:
@@ -2878,9 +2892,6 @@ void VulkanExampleBase::windowResize()
 
 void VulkanExampleBase::handleMouseMove(int32_t x, int32_t y)
 {
-	int32_t dx = (int32_t)mousePos.x - x;
-	int32_t dy = (int32_t)mousePos.y - y;
-
 	bool handled = false;
 
 	if (settings.overlay) {
@@ -2894,19 +2905,32 @@ void VulkanExampleBase::handleMouseMove(int32_t x, int32_t y)
 		return;
 	}
 
-	if (mouseButtons.left) {
-		camera.rotate(glm::vec3(dy * camera.rotationSpeed, -dx * camera.rotationSpeed, 0.0f));
-		viewUpdated = true;
+    float xoffset = -x;
+    float yoffset = y;
+
+    float sensitivity = 0.1f; // change this value to your liking
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+	static float yaw = -90.0f;
+	static float pitch = 0.0f;
+    yaw += xoffset;
+    pitch += yoffset;
+
+    // make sure that when pitch is out of bounds, screen doesn't get flipped
+	if (pitch > 89.0f)
+	{
+		pitch = 89.0f;
 	}
-	if (mouseButtons.right) {
-		camera.translate(glm::vec3(-0.0f, 0.0f, dy * .005f));
-		viewUpdated = true;
+	if (pitch < -89.0f)
+	{
+		pitch = -89.0f;
 	}
-	if (mouseButtons.middle) {
-		camera.translate(glm::vec3(-dx * 0.005f, -dy * 0.005f, 0.0f));
-		viewUpdated = true;
-	}
-	mousePos = glm::vec2((float)x, (float)y);
+
+	camera.camFront.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+	camera.camFront.y = sin(glm::radians(pitch));
+	camera.camFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+	camera.camFront = glm::normalize(camera.camFront);
 }
 
 void VulkanExampleBase::windowResized() {}

@@ -9,6 +9,7 @@
 #include "vulkanexamplebase.h"
 #include <ktx.h>
 #include <ktxvulkan.h>
+#include <glm/gtx/string_cast.hpp>
 
 #define VERTEX_BUFFER_BIND_ID 0
 #define ENABLE_VALIDATION true
@@ -59,7 +60,8 @@ public:
 				glm::vec3 lookat = glm::vec3(0.0f, 0.5f, 0.0f);
 				float fov = 10.0f;
 			} camera;
-            glm::mat4 _pad;
+			float _pad;
+            glm::mat4 lookMat;
 		} ubo;
 	} compute;
 
@@ -100,7 +102,7 @@ public:
 		camera.type = Camera::CameraType::firstperson;
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
 		camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
-		camera.setTranslation(glm::vec3(0.0f, 0.0f, -4.0f));
+		camera.setTranslation(glm::vec3(0.0f, 0.0f, 4.0f));
 		camera.rotationSpeed = 0.0f;
 		camera.movementSpeed = 2.5f;
 	}
@@ -623,9 +625,9 @@ public:
 		stagingBuffer.destroy();
 
 		// Blackholes
-		blackholes.push_back(newBlackhole(glm::vec3(2.75f, -1.5f, -0.0f), 0.002f));
+		//blackholes.push_back(newBlackhole(glm::vec3(2.75f, -1.5f, -0.0f), 0.002f));
 		blackholes.push_back(newBlackhole(glm::vec3(-2.9f, -1.0f, -0.0f), 0.008f));
-		blackholes.push_back(newBlackhole(glm::vec3(0.0f, 1.5f, -0.5f), 0.005f));
+		blackholes.push_back(newBlackhole(glm::vec3(-2.9f, -1.0f, -0.0f), 0.005f));
 		storageBufferSize = blackholes.size() * sizeof(Blackhole);
 
 		vulkanDevice->createBuffer(
@@ -1008,7 +1010,13 @@ public:
 		compute.ubo.lightPos.x = 0.0f + sin(glm::radians(timer * 360.0f)) * cos(glm::radians(timer * 360.0f)) * 2.0f;
 		compute.ubo.lightPos.y = 0.0f + sin(glm::radians(timer * 360.0f)) * 2.0f;
 		compute.ubo.lightPos.z = 0.0f + cos(glm::radians(timer * 360.0f)) * 2.0f;
-		compute.ubo.camera.pos = camera.position * -1.0f;
+		compute.ubo.camera.pos = camera.position;
+
+		compute.ubo.lookMat = glm::lookAt(camera.position, camera.position + camera.camFront, camera.worldUp);
+
+		//std::cout << "Dist to blackhole: " << glm::to_string(blackholes[0].pos - camera.position) << std::endl;
+		//std::cout << "Cam Pos: " << glm::to_string(camera.position) << std::endl;
+
 		VK_CHECK_RESULT(compute.uniformBuffer.map());
 		memcpy(compute.uniformBuffer.mapped, &compute.ubo, sizeof(compute.ubo));
 		compute.uniformBuffer.unmap();
@@ -1018,9 +1026,10 @@ public:
 	void updateStorageBuffers()
 	{
 		// Blackholes
-		blackholes[2].pos.x = sin(glm::radians(timer * 360.0f)) * cos(glm::radians(timer * 360.0f)) * 2.0f;
-		blackholes[2].pos.y = sin(glm::radians(timer * 360.0f)) * 2.0f;
-		blackholes[2].pos.z = cos(glm::radians(timer * 360.0f)) * 2.0f;
+		static float baseX = blackholes[1].pos.x;
+		blackholes[1].pos.x = baseX + sin(glm::radians(timer * 360.0f * 3)) * 4;// *cos(glm::radians(timer * 360.0f)) * 2.0f;
+		//blackholes[2].pos.y = sin(glm::radians(timer * 360.0f)) * 2.0f;
+		//blackholes[2].pos.z = cos(glm::radians(timer * 360.0f)) * 2.0f;
 
 		VK_CHECK_RESULT(compute.storageBuffers.blackholes.map());
 		memcpy(compute.storageBuffers.blackholes.mapped, blackholes.data(), blackholes.size() * sizeof(Blackhole));
@@ -1070,6 +1079,8 @@ public:
 		prepareCompute();
 		buildCommandBuffers();
 		prepared = true;
+
+		ShowCursor(FALSE);
 	}
 
 	virtual void render()
@@ -1081,6 +1092,25 @@ public:
 		{
 			updateUniformBuffers();
 			updateStorageBuffers();
+		}
+
+		if (window == GetFocus())
+		{ // Handle mouse
+			RECT rect;
+			GetWindowRect(window, &rect);
+			int width = rect.right - rect.left;
+			int height = rect.bottom - rect.top;
+
+			POINT cursorPos;
+			GetCursorPos(&cursorPos);
+			POINT centerPos = { rect.left, rect.top };
+			ClientToScreen(window, &centerPos);
+
+			SetCursorPos(centerPos.x, centerPos.y);
+
+			static bool firstTime = true;
+			if (firstTime) firstTime = false;
+			else handleMouseMove(centerPos.x - cursorPos.x, centerPos.y - cursorPos.y);
 		}
 	}
 

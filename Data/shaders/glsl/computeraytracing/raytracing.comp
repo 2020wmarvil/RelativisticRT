@@ -31,7 +31,7 @@ layout (binding = 1) uniform UBO
 	float aspectRatio;
 	vec4 fogColor;
 	Camera camera;
-	mat4 rotMat;
+	mat4 viewMat;
 } ubo;
 
 struct Sphere 
@@ -357,6 +357,7 @@ void main()
 
 	vec3 rayO = ubo.camera.pos;
 	vec3 rayD = normalize(vec3((-1.0 + 2.0 * uv) * vec2(ubo.aspectRatio, 1.0), -1.0));
+	rayD = normalize(vec3(vec4(rayD, 1.0)* ubo.viewMat));
 		
 	// Basic color path
 	int id = 0;
