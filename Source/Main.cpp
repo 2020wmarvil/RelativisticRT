@@ -89,6 +89,8 @@ public:
 		float mass;
 	};
 
+	std::vector<Blackhole> blackholes;
+
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
 		title = "General Relativistic Raytracing";
@@ -621,34 +623,17 @@ public:
 		stagingBuffer.destroy();
 
 		// Blackholes
-		std::vector<Blackhole> blackholes;
 		blackholes.push_back(newBlackhole(glm::vec3(2.75f, -1.5f, -0.0f), 0.002f));
 		blackholes.push_back(newBlackhole(glm::vec3(-2.9f, -1.0f, -0.0f), 0.008f));
 		blackholes.push_back(newBlackhole(glm::vec3(0.0f, 1.5f, -0.5f), 0.005f));
 		storageBufferSize = blackholes.size() * sizeof(Blackhole);
 
-		// Stage
 		vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&stagingBuffer,
+			&compute.storageBuffers.blackholes,
 			storageBufferSize,
 			blackholes.data());
-
-		vulkanDevice->createBuffer(
-			// The SSBO will be used as a storage buffer for the compute pipeline and as a vertex buffer in the graphics pipeline
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			&compute.storageBuffers.blackholes,
-			storageBufferSize);
-
-		// Copy to staging buffer
-		copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-		copyRegion.size = storageBufferSize;
-		vkCmdCopyBuffer(copyCmd, stagingBuffer.buffer, compute.storageBuffers.blackholes.buffer, 1, &copyRegion);
-		vulkanDevice->flushCommandBuffer(copyCmd, queue, true);
-
-		stagingBuffer.destroy();
 
 		// Planes
 		std::vector<Plane> planes;
@@ -1029,6 +1014,19 @@ public:
 		compute.uniformBuffer.unmap();
 	}
 
+	// Update compute shader storage buffers
+	void updateStorageBuffers()
+	{
+		// Blackholes
+		blackholes[2].pos.x = sin(glm::radians(timer * 360.0f)) * cos(glm::radians(timer * 360.0f)) * 2.0f;
+		blackholes[2].pos.y = sin(glm::radians(timer * 360.0f)) * 2.0f;
+		blackholes[2].pos.z = cos(glm::radians(timer * 360.0f)) * 2.0f;
+
+		VK_CHECK_RESULT(compute.storageBuffers.blackholes.map());
+		memcpy(compute.storageBuffers.blackholes.mapped, blackholes.data(), blackholes.size() * sizeof(Blackhole));
+		compute.storageBuffers.blackholes.unmap();
+	}
+
 	void draw()
 	{
 		// Submit compute commands
@@ -1081,6 +1079,7 @@ public:
 		if (!paused)
 		{
 			updateUniformBuffers();
+			updateStorageBuffers();
 		}
 	}
 
