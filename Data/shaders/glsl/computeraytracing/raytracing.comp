@@ -137,11 +137,11 @@ VelAcc stepVelAcc(vec3 pos, vec3 vel) {
 
 vec3 bendPos(vec3 pos, inout float r2) {
 
-	float G = 1.0;
+	float G = 0.01;
 	float m1 = 1.0;
-	float m2 = 1.1;
+	float m2 = 1.0;
 
-	vec3 blackholeCenter = vec3(1.75f, -0.5f, 0.0f);
+	vec3 blackholeCenter = vec3(1.75f, -0.75f, -0.5f);
 	vec3 r = blackholeCenter - pos;
 	r2 = dot(r, r);
 
@@ -160,6 +160,8 @@ int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 	float c = 1.0f;
 	float stepSize = 0.1f;
 
+	float schwarzildRadiusSquared = 1.25f * 1.25f;
+
 	vec3 pos = rayO;
 	vec3 dir = rayD;
 	//vec3 vel = rayD * c;
@@ -168,9 +170,6 @@ int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 	float resT = MAXLEN;
 
 	for (int iter = 0; iter < numIterations; iter++) {
-		//vec3 currentPos = pos + dir * (stepSize * iter);
-		//vec3 currentDir = dir;
-
 		for (int i = 0; i < spheres.length(); i++)
 		{
 			float tSphere = sphereIntersect(pos, dir, spheres[i]);
@@ -198,11 +197,19 @@ int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 		if (id != -1 && resT < stepSize) break;
 
 		vec3 nextPos = pos + dir * stepSize;
-		dir = normalize(nextPos - pos);
-		float r2;
-		pos = bendPos(nextPos, r2);
 
-		if (r2 < 0.01) return -1;
+		float r2;
+		vec3 bentPos = bendPos(nextPos, r2);
+
+		vec3 nextDir = normalize(bentPos - pos);
+
+		pos = bentPos;
+		dir = nextDir;
+
+		//pos = nextPos;
+
+		if (r2 < schwarzildRadiusSquared) return -1;
+
 
 		//VelAcc k1 = stepVelAcc(pos, vel);
 		//VelAcc k2 = stepVelAcc(pos + dt * 0.5 * k1.vel, vel + dt * 0.5 * k1.acc);
