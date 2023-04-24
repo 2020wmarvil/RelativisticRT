@@ -176,6 +176,28 @@ vec3 bendPos(vec3 pos, inout int index) {
 	return pos;
 }
 
+int accretionID = -3;
+vec3 accretionColor = vec3(1.0, 0.0, 0.0);
+
+float sdSphere( vec3 p, float r )
+{
+    return length(p) - r;
+}
+
+float sdPlane( vec3 p, vec3 n, float h )
+{
+  // n must be normalized
+  return dot(p,n) + h;
+}
+
+float sdAccretionDisk(vec3 p, float r, vec3 n, float h) {
+	float sphere = sdSphere(p, r);
+	float plane = sdPlane(p, -n, h+0.1);
+	float plane2 = sdPlane(p, n, h-0.1);
+	float planeMax = max(plane, plane2);
+	return max(sphere, planeMax);
+}
+
 int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 {
 	int id = -1;
@@ -196,6 +218,21 @@ int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 			{
 				id = spheres[i].id;
 				resT = tSphere;
+				hitPos = pos + dir * resT;
+				hitDir = dir;
+			}
+		}
+
+		for (int i=0; i<blackholes.length(); i++) {
+
+			float swRadius = 2 * G * blackholes[i].mass * ONE_OVER_C_SQUARED;
+			vec3 normal = vec3(0, 1, 0);
+			float h = 0;
+
+			float tAccretion = sdAccretionDisk(pos - blackholes[i].pos, swRadius * 1.8, normal, h);
+			if (tAccretion > EPSILON && tAccretion < stepSize) {
+				id = accretionID;
+				resT = tAccretion;
 				hitPos = pos + dir * resT;
 				hitDir = dir;
 			}
@@ -300,10 +337,12 @@ vec3 renderScene(inout vec3 rayO, inout vec3 rayD, inout int id)
 		return texture(samplerCubeMap, hitDir).rgb;
 	}
 
-	if (blackholeID == -1)
+	if (objectID == blackholeID)
 	{
 		return color;
 	}
+
+	if (objectID == accretionID) return accretionColor;
 	
 	vec3 pos = hitPos;
 	vec3 lightVec = normalize(ubo.lightPos - pos);				
