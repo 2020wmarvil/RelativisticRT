@@ -57,6 +57,8 @@ layout (std140, binding = 3) buffer Planes
 	Plane planes[ ];
 };
 
+layout (binding = 4) uniform samplerCube samplerCubeMap;
+
 void reflectRay(inout vec3 rayD, in vec3 mormal)
 {
 	rayD = rayD + 2.0 * -dot(mormal, rayD) * mormal;
@@ -282,7 +284,8 @@ vec3 renderScene(inout vec3 rayO, inout vec3 rayD, inout int id)
 	
 	if (objectID == -1)
 	{
-		return color;
+		return texture(samplerCubeMap, rayD).rgb;
+		//return color;
 	}
 	
 	vec3 pos = hitPos;

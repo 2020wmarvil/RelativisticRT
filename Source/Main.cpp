@@ -11,7 +11,7 @@
 #include <ktxvulkan.h>
 
 #define VERTEX_BUFFER_BIND_ID 0
-#define ENABLE_VALIDATION false
+#define ENABLE_VALIDATION true
 
 #if defined(__ANDROID__)
 #define TEX_DIM 1024
@@ -114,6 +114,15 @@ public:
 		compute.storageBuffers.planes.destroy();
 
 		textureComputeTarget.destroy();
+		cubeMap.destroy();
+	}
+
+	// Enable physical device features required for this example
+	virtual void getEnabledFeatures()
+	{
+		if (deviceFeatures.samplerAnisotropy) {
+			enabledFeatures.samplerAnisotropy = VK_TRUE;
+		}
 	}
 
 	// Prepare a texture target that is used to store compute shader calculations
@@ -369,6 +378,12 @@ public:
 		vkFreeMemory(device, stagingMemory, nullptr);
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		ktxTexture_Destroy(ktxTexture);
+
+		// Initialize a descriptor for later use
+		cubeMap.descriptor.imageLayout = cubeMap.imageLayout;
+		cubeMap.descriptor.imageView = cubeMap.view;
+		cubeMap.descriptor.sampler = cubeMap.sampler;
+		cubeMap.device = vulkanDevice;
 	}
 
 	void buildCommandBuffers()
@@ -653,7 +668,7 @@ public:
 		std::vector<VkDescriptorPoolSize> poolSizes =
 		{
 			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),			// Compute UBO
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4),	// Graphics image samplers
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 40),	// Graphics image samplers
 			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1),				// Storage image for ray traced image output
 			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2),			// Storage buffer for the scene primitives
 		};
@@ -824,16 +839,21 @@ public:
 				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				VK_SHADER_STAGE_COMPUTE_BIT,
 				1),
-			// Binding 1: Shader storage buffer for the spheres
+			// Binding 2: Shader storage buffer for the spheres
 			vks::initializers::descriptorSetLayoutBinding(
 				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 				VK_SHADER_STAGE_COMPUTE_BIT,
 				2),
-			// Binding 1: Shader storage buffer for the planes
+			// Binding 3: Shader storage buffer for the planes
 			vks::initializers::descriptorSetLayoutBinding(
 				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 				VK_SHADER_STAGE_COMPUTE_BIT,
-				3)
+				3),
+			// Binding 4: Skybox sampler
+			vks::initializers::descriptorSetLayoutBinding(
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				VK_SHADER_STAGE_COMPUTE_BIT,
+				4)
 		};
 
 		VkDescriptorSetLayoutCreateInfo descriptorLayout =
@@ -878,12 +898,18 @@ public:
 				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 				2,
 				&compute.storageBuffers.spheres.descriptor),
-			// Binding 2: Shader storage buffer for the planes
+			// Binding 3: Shader storage buffer for the planes
 			vks::initializers::writeDescriptorSet(
 				compute.descriptorSet,
 				VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 				3,
-				&compute.storageBuffers.planes.descriptor)
+				&compute.storageBuffers.planes.descriptor),
+			// Binding 4: Skybox cubemap sampler
+			vks::initializers::writeDescriptorSet(
+				compute.descriptorSet,
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				4,
+				&cubeMap.descriptor)
 		};
 
 		vkUpdateDescriptorSets(device, computeWriteDescriptorSets.size(), computeWriteDescriptorSets.data(), 0, NULL);
