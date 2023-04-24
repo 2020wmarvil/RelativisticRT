@@ -198,6 +198,21 @@ float sdAccretionDisk(vec3 p, float r, vec3 n, float h) {
 	return max(sphere, planeMax);
 }
 
+mat4 schwarzschild_metric(vec4 x) {
+    float r = length(x.xyz);
+    float r2 = r * r;
+    float rs = 2.0 * 1.0; // The Schwarzschild radius of the black hole (in units where G = c = 1)
+    float M = rs / 2.0;
+    float denom = r * r + rs * rs / 4.0;
+    mat4 g = mat4(
+        1.0 - rs * rs / r2, 0.0, 0.0, rs * M / r,
+        0.0, -1.0 / (1.0 - rs * rs / r2), 0.0, 0.0,
+        0.0, 0.0, -r2, 0.0,
+        rs * M / r, 0.0, 0.0, denom
+    );
+    return g;
+}
+
 int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 {
 	int id = -1;
@@ -223,20 +238,19 @@ int intersect(in vec3 rayO, in vec3 rayD, inout vec3 hitPos, inout vec3 hitDir)
 			}
 		}
 
-		for (int i=0; i<blackholes.length(); i++) {
+		//for (int i=0; i<blackholes.length(); i++) {
+		//	float swRadius = 2 * G * blackholes[i].mass * ONE_OVER_C_SQUARED;
+		//	vec3 normal = vec3(0, 1, 0);
+		//	float h = 0;
 
-			float swRadius = 2 * G * blackholes[i].mass * ONE_OVER_C_SQUARED;
-			vec3 normal = vec3(0, 1, 0);
-			float h = 0;
-
-			float tAccretion = sdAccretionDisk(pos - blackholes[i].pos, swRadius * 1.8, normal, h);
-			if (tAccretion > EPSILON && tAccretion < stepSize) {
-				id = accretionID;
-				resT = tAccretion;
-				hitPos = pos + dir * resT;
-				hitDir = dir;
-			}
-		}
+		//	float tAccretion = sdAccretionDisk(pos - blackholes[i].pos, swRadius * 1.8, normal, h);
+		//	if (tAccretion > EPSILON && tAccretion < stepSize) {
+		//		id = accretionID;
+		//		resT = tAccretion;
+		//		hitPos = pos + dir * resT;
+		//		hitDir = dir;
+		//	}
+		//}
 
 		//for (int i = 0; i < planes.length(); i++)
 		//{
