@@ -1057,7 +1057,8 @@ public:
 
 		// Cubemap texture
 		const bool forceLinearTiling = false;
-		loadCubemap(getAssetPath() + "textures/cubemap_yokohama_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
+		//loadCubemap(getAssetPath() + "textures/cubemap_yokohama_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
+		loadCubemap(getAssetPath() + "textures/nebula.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
 		//loadCubemap(getAssetPath() + "textures/cubemap_space.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
 
 		prepareStorageBuffers();
