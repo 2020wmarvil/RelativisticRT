@@ -593,9 +593,10 @@ public:
 	{
 		// Spheres
 		std::vector<Sphere> spheres;
-		//spheres.push_back(newSphere(glm::vec3(1.75f, -0.5f, 0.0f), 1.0f, glm::vec3(0.0f, 1.0f, 0.0f), 32.0f));
-		spheres.push_back(newSphere(glm::vec3(0.0f, -100.0f, -3.5f), 1.0f, glm::vec3(0.65f, 0.77f, 0.97f), 32.0f));
-		//spheres.push_back(newSphere(glm::vec3(-1.75f, -0.75f, -0.5f), 1.25f, glm::vec3(0.9f, 0.76f, 0.46f), 32.0f));
+		//spheres.push_back(newSphere(glm::vec3(0, 0, 0), 1.0f, glm::vec3(0.0f, 1.0f, 0.0f), 32.0f));
+		spheres.push_back(newSphere(glm::vec3(0, 0, -5.0), 0.9f, glm::vec3(1.0f, 0.0f, 0.0f), 32.0f));
+		spheres.push_back(newSphere(glm::vec3(0.0f, 3.0f, -3.5f), 1.0f, glm::vec3(0.65f, 0.77f, 0.97f), 32.0f));
+		spheres.push_back(newSphere(glm::vec3(-1.75f, -0.75f, -0.5f), 1.25f, glm::vec3(0.9f, 0.76f, 0.46f), 32.0f));
 		VkDeviceSize storageBufferSize = spheres.size() * sizeof(Sphere);
 
 		// Stage
@@ -625,9 +626,9 @@ public:
 		stagingBuffer.destroy();
 
 		// Blackholes
-		//blackholes.push_back(newBlackhole(glm::vec3(2.75f, -1.5f, -0.0f), 0.002f));
-		blackholes.push_back(newBlackhole(glm::vec3(-2.9f, -1.0f, -0.0f), 0.008f));
-		blackholes.push_back(newBlackhole(glm::vec3(-2.9f, -1.0f, -0.0f), 0.005f));
+		blackholes.push_back(newBlackhole(glm::vec3(0, 0, 0), 0.004f));
+		//blackholes.push_back(newBlackhole(glm::vec3(0.0f, -0.0f, 1.0f), 0.010f));
+		//blackholes.push_back(newBlackhole(glm::vec3(-2.9f, 1.0f, -1.0f), 0.005f));
 		storageBufferSize = blackholes.size() * sizeof(Blackhole);
 
 		vulkanDevice->createBuffer(
@@ -1026,8 +1027,8 @@ public:
 	void updateStorageBuffers()
 	{
 		// Blackholes
-		static float baseX = blackholes[1].pos.x;
-		blackholes[1].pos.x = baseX + sin(glm::radians(timer * 360.0f * 3)) * 4;// *cos(glm::radians(timer * 360.0f)) * 2.0f;
+		//static float baseX = blackholes[1].pos.x;
+		//blackholes[1].pos.x = baseX + sin(glm::radians(timer * 360.0f * 3)) * 4;// *cos(glm::radians(timer * 360.0f)) * 2.0f;
 		//blackholes[2].pos.y = sin(glm::radians(timer * 360.0f)) * 2.0f;
 		//blackholes[2].pos.z = cos(glm::radians(timer * 360.0f)) * 2.0f;
 
@@ -1066,8 +1067,8 @@ public:
 
 		// Cubemap texture
 		const bool forceLinearTiling = false;
-		//loadCubemap(getAssetPath() + "textures/cubemap_yokohama_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
-		loadCubemap(getAssetPath() + "textures/nebula.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
+		loadCubemap(getAssetPath() + "textures/cubemap_yokohama_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
+		//loadCubemap(getAssetPath() + "textures/nebula.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
 		//loadCubemap(getAssetPath() + "textures/cubemap_space.ktx", VK_FORMAT_R8G8B8A8_UNORM, forceLinearTiling);
 
 		prepareStorageBuffers();
